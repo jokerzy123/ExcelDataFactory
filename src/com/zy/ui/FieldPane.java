@@ -26,10 +26,9 @@ public class FieldPane extends JPanel {
 
     private void init() {
         //网格布局，4个格子
-        this.add(filedName_Component);
-        this.add(modelType_Component);
-        this.add(jsonPara_Component);
-
+        add(filedName_Component);
+        add(modelType_Component);
+        add(jsonPara_Component);
     }
 
     public Field getField() {
