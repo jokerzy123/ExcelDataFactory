@@ -1,6 +1,7 @@
 package com.zy.conf;
 
-import java.io.File;
+import java.io.*;
+import java.util.Properties;
 
 /**
  * @Author Zhanying
@@ -34,15 +35,33 @@ public class ConfManager {
         File file = new File(proPath);
         if(!file.exists()){
             try{
-                setConf();
+                setConf(new Conf());
             }catch (Exception e) {
 
             }
         }
     }
 
-    public void setConf(){
+    public Conf getConf(){
+        try(InputStream in = new FileInputStream(proPath)) {
+            Properties pro = new Properties();
+            pro.load(in);
+            String jsonPara = pro.getProperty("jsonPara");
+            return new Conf(jsonPara);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new Conf();
+    }
 
+    public void setConf(Conf conf){
+        try(OutputStream out = new FileOutputStream(proPath)) {
+            Properties pro = new Properties();
+            pro.put("jsonPara", conf.getJsonPara());
+            pro.store(out, "set pro");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 }

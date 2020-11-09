@@ -7,4 +7,15 @@ package com.zy.conf;
  * @Version 1.0
  */
 public class Conf {
+    private String jsonPara;
+
+    public Conf() {}
+
+    public Conf(String jsonPara) {
+        this.jsonPara = jsonPara;
+    }
+
+    public String getJsonPara() {
+        return jsonPara;
+    }
 }
