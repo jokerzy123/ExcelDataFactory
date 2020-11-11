@@ -1,5 +1,6 @@
 package com.zy.main;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -254,6 +255,23 @@ public class GuiMain {
             List<String> fieldNameList = new ArrayList<>();
             //String[] list = {"边防检查站", "姓名", "身份证号", "性别", "国籍", "交通工具", "出入境", "日期", "是否携带违规品", "违规品类型"};
 
+            //优先级排序
+            fieldPaneList.sort(new Comparator<FieldPane>() {
+                @Override
+                public int compare(FieldPane o1, FieldPane o2) {
+                    Field field1 = o1.getField();
+                    Field field2 = o2.getField();
+                    //优先级最高的
+                    if (field1.getModelType().equals("分组随机列表权重")) {
+                        String pGroup = JSON.parseObject(field1.getJsonPara()).getString("pGroup");
+                        if(field2.getFieldName().equals(pGroup)) {
+                            return 1;
+                        }
+                    }
+                    return 0;
+                }
+            });
+
             //获取字段列表
             for(FieldPane fieldPane : fieldPaneList){
                 Field field = fieldPane.getField();
@@ -299,6 +317,23 @@ public class GuiMain {
                                 //System.out.println("对应key值的value="+entry.getValue());
                             }
                             map.put(fieldName, DataFunction.weightChoice(dataList,weightList));
+                            break;
+                        }
+                        case "分组随机列表权重": {
+                            if(jsonObject.getJSONObject("value").containsKey(map.get(jsonObject.getString("pGroup")))) {
+                                JSONObject jsonObject1 = jsonObject.getJSONObject("value").getJSONObject(map.get(jsonObject.getString("pGroup")));
+                                List<String> dataList = new ArrayList<>();
+                                List<Integer> weightList = new ArrayList<>();
+                                for (Map.Entry<String, Object> entry : jsonObject1.entrySet()) {
+                                    dataList.add(entry.getKey());
+                                    weightList.add((Integer) entry.getValue());
+                                    //System.out.println("key值="+entry.getKey());
+                                    //System.out.println("对应key值的value="+entry.getValue());
+                                }
+                                map.put(fieldName, DataFunction.weightChoice(dataList,weightList));
+                            } else {
+                                map.put(fieldName, "");
+                            }
                             break;
                         }
                         default:

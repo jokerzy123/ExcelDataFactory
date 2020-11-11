@@ -18,7 +18,7 @@ import java.util.List;
  * @Version 1.0
  */
 public class FieldPane extends JPanel {
-    private final String[] models = {"--请选择--", "累加id", "随机整数", "随机时间", "随机列表权重", "明细公式(待开发)"};
+    private final String[] models = {"--请选择--", "累加id", "随机整数", "随机时间", "随机列表权重", "分组随机列表权重", "明细公式(待开发)"};
     private Field field;
 
     private final JTextField filedName_Component = new JTextField();
