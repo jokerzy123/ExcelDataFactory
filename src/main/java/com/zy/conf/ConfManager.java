@@ -10,7 +10,7 @@ import java.util.Properties;
  * @Version 1.0
  */
 public class ConfManager {
-    private static final String proPath = "/resources/config.properties";
+    private static final String proPath = "config.properties";
     private static volatile ConfManager instance;
 
     private ConfManager() {
@@ -37,7 +37,7 @@ public class ConfManager {
             try{
                 setConf(new Conf());
             }catch (Exception e) {
-
+                e.printStackTrace();
             }
         }
     }
@@ -57,11 +57,15 @@ public class ConfManager {
     public void setConf(Conf conf){
         try(OutputStream out = new FileOutputStream(proPath)) {
             Properties pro = new Properties();
-            pro.put("jsonPara", conf.getJsonPara());
+            pro.put("jsonPara", conf.getJsonPara() == null ? "" : conf.getJsonPara());
             pro.store(out, "set pro");
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static void main(String[] args) {
+        ConfManager.getInstance().setConf(new Conf("{}"));
     }
 
 }
