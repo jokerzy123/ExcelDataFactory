@@ -15,16 +15,16 @@ import com.zy.excel.GenerateExcel;
 import com.zy.excel.RowObject;
 import com.zy.model.Model;
 import com.zy.model.ModelType;
-import com.zy.ui.ButtonsPane;
+import com.zy.ui.ButtonsJToolBar;
 import com.zy.ui.FieldPane;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-
 import javax.swing.*;
 import javax.swing.border.LineBorder;
+import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.FontUIResource;
 import java.awt.*;
@@ -75,25 +75,26 @@ public class GuiMain {
         mainFrame.setIconImage(img);
         mainFrame.setSize(800,(int) (800*0.618));
         mainFrame.setLocationByPlatform(true);//由平台显示一个合适的位置
+        //mainFrame.setBackground(Color.decode("#CCFF99"));
+
+
+        // 创建 内容面板，使用 边界布局
+        JPanel mainPanel = new JPanel(new BorderLayout());//整体区域
+
         //设置布局
         //mainFrame.setLayout(new GridLayout(4, 1));
-        mainFrame.setLayout(new BorderLayout());
+        mainFrame.setContentPane(mainPanel);
         //headerLabel = new JLabel("",JLabel.CENTER );//居中
-        statusLabel = new JLabel("",JLabel.CENTER);
-        statusLabel.setSize(350,100);
+
         mainFrame.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent windowEvent){
                 System.exit(0);
             }
         });
-        JPanel controlPanel = new JPanel();//JPanel 是一个最简单的容器。它提供了任何其他组件可以被放置的空间，包括其他面板。
-        controlPanel.setLayout(new GridLayout(3,1));
-        controlPanel.setBorder(new LineBorder(new Color(0,0,0,0),5));
 
-        JPanel paraPanel = new JPanel();
-        paraPanel.setLayout(new FlowLayout());//存放参数
-
-        JPanel btnPanel = new ButtonsPane(new ActionListener() {
+        //工具栏测试
+        // 创建 一个工具栏实例
+        JToolBar toolBar = new ButtonsJToolBar(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String command = e.getActionCommand();
@@ -104,12 +105,12 @@ public class GuiMain {
                     }
                     case "add": {
                         addField();
-                        statusLabel.setText("添加字段成功！");
+                        printLog("添加字段成功！");
                         break;
                     }
                     case "remove": {
                         removeAllFields();
-                        statusLabel.setText("清空字段成功！");
+                        printLog("清空字段成功！");
                         break;
                     }
                     case "backup": {
@@ -127,10 +128,10 @@ public class GuiMain {
                     case "save": {
                         try {
                             saveConf();
-                            statusLabel.setText("存档成功！");
+                            printLog("存档成功！");
                         } catch (Exception exception) {
                             exception.printStackTrace();
-                            statusLabel.setText("存档失败！请补充好字段");
+                            printLog("存档失败！请补充好字段");
                         }
                         break;
                     }
@@ -149,7 +150,27 @@ public class GuiMain {
                 }
             }
         });
-        controlPanel.add(btnPanel);
+        mainPanel.add(toolBar, BorderLayout.EAST);
+
+        JPanel workPanel = new JPanel(new BorderLayout());//工作区域
+        TitledBorder tb = BorderFactory.createTitledBorder("工作区");
+        tb.setTitleJustification(TitledBorder.RIGHT);
+        workPanel.setBorder(tb);
+        workPanel.setBackground(Color.decode("#FFCC99"));
+        //workPanel.setBorder(new LineBorder(Color.LIGHT_GRAY,5));
+
+        mainPanel.add(workPanel, BorderLayout.CENTER);
+
+        statusLabel = new JLabel("",JLabel.CENTER);
+        statusLabel.setSize(350,100);
+
+        JPanel controlPanel = new JPanel();//JPanel 是一个最简单的容器。它提供了任何其他组件可以被放置的空间，包括其他面板。
+        controlPanel.setLayout(new GridLayout(2,1));
+        //controlPanel.setBorder(new LineBorder(new Color(0,0,0,0),5));
+
+        JPanel paraPanel = new JPanel();
+        paraPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5));//存放参数
+
         controlPanel.add(paraPanel);
 
         JPanel fieldPanel = new JPanel();
@@ -161,16 +182,31 @@ public class GuiMain {
         fieldPanel_ = new JPanel();
         fieldPanel_.setLayout(gridLayout);
         scrollPane.setViewportView(fieldPanel_);
-        mainFrame.add(controlPanel, BorderLayout.NORTH);
-        mainFrame.add(fieldPanel, BorderLayout.CENTER);
-        mainFrame.add(statusLabel, BorderLayout.SOUTH);
+
+        workPanel.add(controlPanel, BorderLayout.NORTH);
+        workPanel.add(fieldPanel, BorderLayout.CENTER);
+        workPanel.add(new JPanel(){{
+            TitledBorder tb1 = BorderFactory.createTitledBorder("日志");
+            tb1.setTitleJustification(TitledBorder.RIGHT);
+            setBorder(tb1);
+            add(statusLabel);
+        }}, BorderLayout.SOUTH);
+
         //网格容器里面放置控件
         jTextField_Num = new JTextField(10);//行数设置
-        jTextField_Num.addFocusListener(new JTextFieldHintListener(jTextField_Num, "行数设置"));
-        jTextField_Unique = new JTextField(20);//主键关联设置
-        jTextField_Unique.addFocusListener(new UniqueJTextFieldHintListener(jTextField_Unique, "联合关联约束"));
+        jTextField_Num.addFocusListener(new JTextFieldHintListener(jTextField_Num, ""));
+        jTextField_Unique = new JTextField(50);//主键关联设置
+        jTextField_Unique.addFocusListener(new UniqueJTextFieldHintListener(jTextField_Unique, ""));
+
+        paraPanel.add(new JLabel("行数设置"));
         paraPanel.add(jTextField_Num);
-        controlPanel.add(jTextField_Unique);
+
+
+        controlPanel.add(new JPanel() {{
+            setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5));
+            add(new JLabel("关联约束"));
+            add(jTextField_Unique);
+        }});
         //测试字段区域
         fieldPanel_.add(new JPanel(new GridLayout(1,4)) {{
             add(new JLabel("字段名称", JLabel.CENTER));
@@ -179,6 +215,10 @@ public class GuiMain {
             add(new JLabel("操作", JLabel.CENTER));
         }});
         //fieldPanel_.setPreferredSize(new Dimension(0, 30));
+
+
+        //toolBar.add(btnPanel);
+
         mainFrame.setVisible(true);
     }
 
@@ -437,12 +477,12 @@ public class GuiMain {
                 if(rowNum>1048575){
                     //GenerateCsv.createCsv(jTextField_FileName.getText()+".csv", fieldNameList, rowObjectList);
                     GenerateCsv.createCsv(fileName+".csv", fieldNameList, rowObjectList);
-                    statusLabel.setText(new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(new Date())+" 生成表格成功！"+fileName+".csv");
+                    printLog("生成表格成功！"+fileName+".csv");
                 }else{
                     //xls格式，HSSFWorkbook
                     //GenerateExcel.createExcel(jTextField_FileName.getText()+".xls", fieldNameList, rowObjectList);
                     GenerateExcel.createExcel(fileName+".xlsx", fieldNameList, rowObjectList);
-                    statusLabel.setText(new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(new Date())+"生成表格成功！"+fileName+".xlsx");
+                    printLog("生成表格成功！"+fileName+".xlsx");
                 }
                 //保存配置
                 saveConf();
@@ -467,7 +507,7 @@ public class GuiMain {
             table.setUniquePara(uniquePara);
 
             tableMap.put(name, table);
-            statusLabel.setText("添加备份成功！");
+            printLog("添加备份成功！");
             try {
                 saveConf();
             } catch (JsonProcessingException e) {
@@ -491,7 +531,7 @@ public class GuiMain {
                 Table table = (Table) tableMap.get(name);
                 try {
                     refresh(table);
-                    statusLabel.setText("读取备份成功！");
+                    printLog("读取备份成功！");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -519,7 +559,7 @@ public class GuiMain {
             jTextField_Unique.setText(uniquePara);
             jTextField_Unique.setForeground(Color.BLACK);
         } else {
-            jTextField_Unique.setText("联合关联约束");
+            //jTextField_Unique.setText("联合关联约束");
             jTextField_Unique.setForeground(Color.GRAY);
         }
     }
@@ -534,7 +574,7 @@ public class GuiMain {
             String name = (String) JOptionPane.showInputDialog(null, "请选择待删除的标签名：\n", "备份删除", JOptionPane.PLAIN_MESSAGE, null, objects, objects[0]);
             if(name != null && name.length() > 0 && tableMap.containsKey(name)) {
                 tableMap.remove(name);
-                statusLabel.setText("删除备份成功！");
+                printLog("删除备份成功！");
             }
         }
         try {
@@ -635,7 +675,7 @@ public class GuiMain {
         //fd.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         int returnValue = fileChooser.showOpenDialog(null);
         //弹出一个文件选择提示框
-        if (returnValue == fileChooser.APPROVE_OPTION) {
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
             //当用户选择文件后获取文件路径
             File chooseFile = fileChooser.getSelectedFile();
 
@@ -661,6 +701,15 @@ public class GuiMain {
                 }
             }
         }
+        printLog("导入表头成功");
+    }
+
+    /**
+     * 日志区打印日志
+     * @param s
+     */
+    private void printLog(String s) {
+        statusLabel.setText(new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(new Date()) + " " + s);
     }
 
 
