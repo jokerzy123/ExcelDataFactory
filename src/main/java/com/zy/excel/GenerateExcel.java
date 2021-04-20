@@ -1,9 +1,10 @@
 package com.zy.excel;
 
-import org.apache.poi.hssf.usermodel.HSSFCell;
-import org.apache.poi.hssf.usermodel.HSSFRow;
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.xssf.streaming.SXSSFCell;
+import org.apache.poi.xssf.streaming.SXSSFRow;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+
 
 import java.io.FileOutputStream;
 import java.util.List;
@@ -16,19 +17,20 @@ public class GenerateExcel {
     }
 
     //传入RowObject列表，这里方法名开头应该小写
+    // TODO 换成SXSSFWorkbook
     public static void createExcel(String filePath, List<String> fieldNameList,List<RowObject> rowObjectList){
         try{
-            //创建HSSFWorkbook对象
-            HSSFWorkbook wb = new HSSFWorkbook();
-            //创建HSSFSheet对象
-            HSSFSheet sheet = wb.createSheet("sheet0");
-            //创建HSSFRow对象，先创建一个行对象（传入行标），然后在行对象里面创建一个单元格对象，根据列标指定单元格
+            //创建SXSSFWorkbook对象
+            SXSSFWorkbook wb = new SXSSFWorkbook();
+            //创建SXSSFSheet对象
+            SXSSFSheet sheet = wb.createSheet("sheet0");
+            //创建SXSSFRow对象，先创建一个行对象（传入行标），然后在行对象里面创建一个单元格对象，根据列标指定单元格
             int rownum = 0;
-            HSSFRow row = sheet.createRow(rownum);
+            SXSSFRow row = sheet.createRow(rownum);
             //表头写入excel
             for(int i=0; i<fieldNameList.size(); i++){
-                //创建HSSFCell对象
-                HSSFCell cell=row.createCell(i);
+                //创建SXSSFCell对象
+                SXSSFCell cell=row.createCell(i);
                 cell.setCellValue(fieldNameList.get(i));
             }
 
@@ -39,7 +41,7 @@ public class GenerateExcel {
                 row = sheet.createRow(rownum);
                 Map<String,String> propertyMap = rowObject.getPropertMap();
                 for(int i=0; i<fieldNameList.size(); i++){
-                    HSSFCell cell=row.createCell(i);
+                    SXSSFCell cell=row.createCell(i);
                     cell.setCellValue(propertyMap.get(fieldNameList.get(i)));
                 }
             }

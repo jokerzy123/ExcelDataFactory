@@ -1,5 +1,6 @@
 package com.zy.constant;
 
+import javax.swing.*;
 import java.awt.*;
 
 /**
@@ -10,4 +11,5 @@ import java.awt.*;
  */
 public class Constants {
     public static final Font font = new Font("楷体", Font.PLAIN, 15);
+    public static final Image icon = new ImageIcon("./icon/favicon.png").getImage();
 }

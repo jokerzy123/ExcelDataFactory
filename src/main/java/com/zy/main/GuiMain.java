@@ -8,22 +8,34 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zy.Field;
 import com.zy.conf.Conf;
 import com.zy.conf.ConfManager;
+import com.zy.conf.Table;
 import com.zy.constant.Constants;
 import com.zy.csv.GenerateCsv;
-import com.zy.datafunction.DataFunction;
-import com.zy.datafunction.DateFunction;
 import com.zy.excel.GenerateExcel;
 import com.zy.excel.RowObject;
+import com.zy.model.Model;
+import com.zy.model.ModelType;
 import com.zy.ui.ButtonsPane;
 import com.zy.ui.FieldPane;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 import javax.swing.*;
+import javax.swing.border.LineBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.FontUIResource;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.*;
+import java.util.function.BiConsumer;
 
 public class GuiMain {
 
@@ -34,6 +46,8 @@ public class GuiMain {
     private final List<FieldPane> fieldPaneList = new ArrayList<>();
     private JTextField jTextField_Num;//行数设置
     private JTextField jTextField_Unique;
+
+    private Map<String, Object> tableMap = new HashMap<>();//备份的表配置
 
     //构造器
     public GuiMain(){
@@ -57,7 +71,7 @@ public class GuiMain {
         //基础布局
         JFrame mainFrame = new JFrame("excel模拟数据工厂");//设置标题
         //设置图标
-        Image img = new ImageIcon("./icon/favicon.png").getImage();
+        Image img = Constants.icon;
         mainFrame.setIconImage(img);
         mainFrame.setSize(800,(int) (800*0.618));
         mainFrame.setLocationByPlatform(true);//由平台显示一个合适的位置
@@ -74,6 +88,8 @@ public class GuiMain {
         });
         JPanel controlPanel = new JPanel();//JPanel 是一个最简单的容器。它提供了任何其他组件可以被放置的空间，包括其他面板。
         controlPanel.setLayout(new GridLayout(3,1));
+        controlPanel.setBorder(new LineBorder(new Color(0,0,0,0),5));
+
         JPanel paraPanel = new JPanel();
         paraPanel.setLayout(new FlowLayout());//存放参数
 
@@ -94,6 +110,41 @@ public class GuiMain {
                     case "remove": {
                         removeAllFields();
                         statusLabel.setText("清空字段成功！");
+                        break;
+                    }
+                    case "backup": {
+                        backup();
+                        break;
+                    }
+                    case "tables": {
+                        tables();
+                        break;
+                    }
+                    case "deleteBack": {
+                        deleteBack();
+                        break;
+                    }
+                    case "save": {
+                        try {
+                            saveConf();
+                            statusLabel.setText("存档成功！");
+                        } catch (Exception exception) {
+                            exception.printStackTrace();
+                            statusLabel.setText("存档失败！请补充好字段");
+                        }
+                        break;
+                    }
+                    case "link": {
+                        try {
+                            browse2("http://note.youdao.com/noteshare?id=da24263769490356b42262543126373e&sub=F788D88B2FEB46F1AD5A6D0072737591");
+                        } catch (Exception exception) {
+                            exception.printStackTrace();
+                        }
+                        break;
+                    }
+                    case "import": {
+                        importFields();
+                        break;
                     }
                 }
             }
@@ -104,6 +155,7 @@ public class GuiMain {
         JPanel fieldPanel = new JPanel();
         gridLayout = new GridLayout(1,1);
         fieldPanel.setLayout(new BorderLayout(0,0));
+        fieldPanel.setBorder(new LineBorder(new Color(0,0,0,0),5));
         JScrollPane scrollPane = new JScrollPane();
         fieldPanel.add(scrollPane, BorderLayout.CENTER);
         fieldPanel_ = new JPanel();
@@ -116,7 +168,7 @@ public class GuiMain {
         jTextField_Num = new JTextField(10);//行数设置
         jTextField_Num.addFocusListener(new JTextFieldHintListener(jTextField_Num, "行数设置"));
         jTextField_Unique = new JTextField(20);//主键关联设置
-        jTextField_Unique.addFocusListener(new JTextFieldHintListener(jTextField_Unique, "联合关联约束"));
+        jTextField_Unique.addFocusListener(new UniqueJTextFieldHintListener(jTextField_Unique, "联合关联约束"));
         paraPanel.add(jTextField_Num);
         controlPanel.add(jTextField_Unique);
         //测试字段区域
@@ -126,7 +178,20 @@ public class GuiMain {
             add(new JLabel("参数", JLabel.CENTER));
             add(new JLabel("操作", JLabel.CENTER));
         }});
+        //fieldPanel_.setPreferredSize(new Dimension(0, 30));
         mainFrame.setVisible(true);
+    }
+
+    /**
+     * @title 使用默认浏览器打开
+     * @param url 要打开的网址
+     */
+    private static void browse2(String url) throws Exception {
+        Desktop desktop = Desktop.getDesktop();
+        if (Desktop.isDesktopSupported() && desktop.isSupported(Desktop.Action.BROWSE)) {
+            URI uri = new URI(url);
+            desktop.browse(uri);
+        }
     }
 
     private static class JTextAreaHintListener implements FocusListener {
@@ -196,7 +261,41 @@ public class GuiMain {
             }
 
         }
+    }
 
+    private static class UniqueJTextFieldHintListener implements FocusListener {
+        //提示文字功能
+        private final String hintText;
+        private final JTextField textField;
+
+        public UniqueJTextFieldHintListener(JTextField jTextField, String hintText) {
+            this.textField = jTextField;
+            this.hintText = hintText;
+            jTextField.setText(hintText);  //默认直接显示
+            jTextField.setForeground(Color.GRAY);
+        }
+
+        @Override
+        public void focusGained(FocusEvent e) {
+            //获取焦点时，清空提示内容
+            String temp = textField.getText();
+            if (temp.equals(hintText)) {
+                textField.setText("{primaryField:\"\",relatedFields:[]}");
+                textField.setForeground(Color.BLACK);
+            }
+
+        }
+
+        @Override
+        public void focusLost(FocusEvent e) {
+            //失去焦点时，没有输入内容，显示提示内容
+            String temp = textField.getText();
+            if (temp.equals("") || temp.equals("{primaryField:\"\",relatedFields:[]}")) {
+                textField.setForeground(Color.GRAY);
+                textField.setText(hintText);
+            }
+
+        }
     }
 
     /**
@@ -250,6 +349,24 @@ public class GuiMain {
      */
     private void createExcel(){
         try{
+            //关联约束处理
+            boolean uniqueFlag = false;
+            Map<String, RowObject> uniqueMap = new HashMap<>();
+            String primaryField = null;
+            String[] relatedFields = null;
+            String unique = jTextField_Unique.getText();//获取约束条件
+            if(unique != null && unique.length()!=0 && !unique.equals("联合关联约束")){
+                JSONObject uniqueJsonObject = JSONObject.parseObject(unique);
+                primaryField = uniqueJsonObject.getString("primaryField");
+                relatedFields = uniqueJsonObject.getString("relatedFields").split(",");
+                if(primaryField.length() > 0 && relatedFields.length > 0) {
+                    uniqueFlag = true;
+                }
+                //调用reset方法
+                //rowObject.uniqueReset(rowObjectList,primaryField,relatedFields);//重置关联字段
+            }
+
+
             int rowNum = Integer.parseInt(jTextField_Num.getText());//设置表的行数
             //获取字段名称，字段名称不能重复
             List<String> fieldNameList = new ArrayList<>();
@@ -261,11 +378,21 @@ public class GuiMain {
                 public int compare(FieldPane o1, FieldPane o2) {
                     Field field1 = o1.getField();
                     Field field2 = o2.getField();
-                    //优先级最高的
-                    if (field1.getModelType().equals("分组随机列表权重")) {
-                        String pGroup = JSON.parseObject(field1.getJsonPara()).getString("pGroup");
-                        if(field2.getFieldName().equals(pGroup)) {
-                            return 1;
+                    ModelType modelType = ModelType.getModelType(field1.getModelType());
+                    if(modelType != null) {
+                        switch (modelType) {
+                            case GroupRandomListWeight: {
+                                String pGroup = JSON.parseObject(field1.getJsonPara()).getString("pGroup");
+                                if(field2.getFieldName().equals(pGroup)) {
+                                    return 1;
+                                }
+                            }
+                            case GroupRandomInt: {
+                                String pGroup = JSON.parseObject(field1.getJsonPara()).getString("pGroup");
+                                if(field2.getFieldName().equals(pGroup)) {
+                                    return 1;
+                                }
+                            }
                         }
                     }
                     return 0;
@@ -289,89 +416,161 @@ public class GuiMain {
                     String model = field.getModelType();
                     String para = field.getJsonPara();
                     JSONObject jsonObject = JSONObject.parseObject(para);//转换为json对象
-                    //根据不同数据模型，生成数据
-                    switch (model){
-                        case "累加id":
-                        {
-                            map.put(fieldName, String.valueOf(jsonObject.getLong("begin")+i));
-                            break;
-                        }
-                        case "随机整数":
-                        {
-                            map.put(fieldName, String.valueOf(DataFunction.random(jsonObject.getLong("begin"),jsonObject.getLong("end"))));
-                            break;
-                        }
-                        case "随机时间":
-                        {
-                            map.put(fieldName, new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(DateFunction.randomDate(jsonObject.getString("beginDate"),jsonObject.getString("endDate"))));
-                            break;
-                        }
-                        case "随机列表权重":
-                        {
-                            List<String> dataList = new ArrayList<>();
-                            List<Integer> weightList = new ArrayList<>();
-                            for (Map.Entry<String, Object> entry : jsonObject.entrySet()) {
-                                dataList.add(entry.getKey());
-                                weightList.add((Integer) entry.getValue());
-                                //System.out.println("key值="+entry.getKey());
-                                //System.out.println("对应key值的value="+entry.getValue());
-                            }
-                            map.put(fieldName, DataFunction.weightChoice(dataList,weightList));
-                            break;
-                        }
-                        case "分组随机列表权重": {
-                            if(jsonObject.getJSONObject("value").containsKey(map.get(jsonObject.getString("pGroup")))) {
-                                JSONObject jsonObject1 = jsonObject.getJSONObject("value").getJSONObject(map.get(jsonObject.getString("pGroup")));
-                                List<String> dataList = new ArrayList<>();
-                                List<Integer> weightList = new ArrayList<>();
-                                for (Map.Entry<String, Object> entry : jsonObject1.entrySet()) {
-                                    dataList.add(entry.getKey());
-                                    weightList.add((Integer) entry.getValue());
-                                    //System.out.println("key值="+entry.getKey());
-                                    //System.out.println("对应key值的value="+entry.getValue());
-                                }
-                                map.put(fieldName, DataFunction.weightChoice(dataList,weightList));
-                            } else {
-                                map.put(fieldName, "");
-                            }
-                            break;
-                        }
-                        default:
-                            break;
+                    Model model1 = ModelType.getModel(ModelType.getModelType(model));
+                    if(model1 != null) {
+                        model1.Compute(fieldName, jsonObject, map, i);
                     }
                 }
                 //添加完属性后，传给RowObject对象
                 RowObject rowObject = new RowObject(map);
                 //这里进行约束处理
                 //System.out.println(rowObject.getPropertMap().get("A"));
-                String unique = jTextField_Unique.getText();//获取约束条件
-                if(unique != null && unique.length()!=0 && !unique.equals("联合关联约束")){
-                    JSONObject uniqueJsonObject = JSONObject.parseObject(unique);
-                    String primaryField = uniqueJsonObject.getString("primaryField");
-                    String[] relatedFields = uniqueJsonObject.getString("relatedFields").split(",");
-                    //调用reset方法
-                    rowObject.uniqueReset(rowObjectList,primaryField,relatedFields);//重置关联字段
+                if(uniqueFlag) {
+                    rowObject.uniqueReset(uniqueMap, primaryField, relatedFields);
                 }
                 rowObjectList.add(rowObject);
             }
             String fileName = JOptionPane.showInputDialog(null, "请输入文件名（无需后缀）：\n", "文件名", JOptionPane.PLAIN_MESSAGE);
             System.out.println(fileName);
-            //两种不同的方式生成xls或者csv文件，以支撑更大数据量
-            if(rowNum>65535){
-                //GenerateCsv.createCsv(jTextField_FileName.getText()+".csv", fieldNameList, rowObjectList);
-                GenerateCsv.createCsv(fileName+".csv", fieldNameList, rowObjectList);
-                statusLabel.setText(new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(new Date())+" 生成表格成功！"+fileName+".csv");
-            }else{
-                //xls格式，HSSFWorkbook
-                //GenerateExcel.createExcel(jTextField_FileName.getText()+".xls", fieldNameList, rowObjectList);
-                GenerateExcel.createExcel(fileName+".xls", fieldNameList, rowObjectList);
-                statusLabel.setText(new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(new Date())+"生成表格成功！"+fileName+".xls");
+            if(fileName != null && fileName.length() > 0) {
+                //两种不同的方式生成xls或者csv文件，以支撑更大数据量
+                if(rowNum>1048575){
+                    //GenerateCsv.createCsv(jTextField_FileName.getText()+".csv", fieldNameList, rowObjectList);
+                    GenerateCsv.createCsv(fileName+".csv", fieldNameList, rowObjectList);
+                    statusLabel.setText(new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(new Date())+" 生成表格成功！"+fileName+".csv");
+                }else{
+                    //xls格式，HSSFWorkbook
+                    //GenerateExcel.createExcel(jTextField_FileName.getText()+".xls", fieldNameList, rowObjectList);
+                    GenerateExcel.createExcel(fileName+".xlsx", fieldNameList, rowObjectList);
+                    statusLabel.setText(new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(new Date())+"生成表格成功！"+fileName+".xlsx");
+                }
+                //保存配置
+                saveConf();
             }
-            //保存配置
-            saveConf();
         }catch (Exception e){
             JOptionPane.showMessageDialog(null, e.toString()+e.getCause()+"\n", "错误提示",JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /**
+     * 备份
+     */
+    private void backup() {
+        String name = (String) JOptionPane.showInputDialog(null, "请输入标签名：\n", "备份", JOptionPane.PLAIN_MESSAGE);
+        if(name != null && name.length() > 0) {
+            Conf conf = getCurrentConf();
+            String jsonPara = conf.getJsonPara();
+            String uniquePara = conf.getUniquePara();
+
+            Table table = new Table();
+            table.setJsonPara(jsonPara);
+            table.setUniquePara(uniquePara);
+
+            tableMap.put(name, table);
+            statusLabel.setText("添加备份成功！");
+            try {
+                saveConf();
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * 管理备份，读取删除等
+     */
+    private void tables() {
+        List<Object> list = new ArrayList<>();
+        list.add("--请选择--");
+        list.addAll(tableMap.keySet());
+        Object[] objects = list.toArray(new Object[0]);
+
+        if(objects.length > 0) {
+            String name = (String) JOptionPane.showInputDialog(null, "请选择标签名：\n", "备份管理", JOptionPane.PLAIN_MESSAGE, null, objects, objects[0]);
+            if(name != null && name.length() > 0 && tableMap.containsKey(name)) {
+                Table table = (Table) tableMap.get(name);
+                try {
+                    refresh(table);
+                    statusLabel.setText("读取备份成功！");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    /**
+     * 刷新当前表
+     */
+    private void refresh(Table table) throws IOException {
+        String jsonPara = table.getJsonPara();
+        String uniquePara = table.getUniquePara();
+        //先要清空所有
+        removeAllFields();
+        if(jsonPara != null && jsonPara.length() > 0) {
+            JSONArray jsonArray = JSONArray.parseArray(jsonPara);
+            for(Object o : jsonArray) {
+                JSONObject jsonObject = (JSONObject) o;
+                Field field = new ObjectMapper().readValue(jsonObject.toJSONString(), Field.class);
+                addField(field);
+            }
+        }
+        if(uniquePara != null && uniquePara.length() > 0) {
+            jTextField_Unique.setText(uniquePara);
+            jTextField_Unique.setForeground(Color.BLACK);
+        } else {
+            jTextField_Unique.setText("联合关联约束");
+            jTextField_Unique.setForeground(Color.GRAY);
+        }
+    }
+
+    private void deleteBack() {
+        List<Object> list = new ArrayList<>();
+        list.add("--请选择--");
+        list.addAll(tableMap.keySet());
+        Object[] objects = list.toArray(new Object[0]);
+
+        if(objects.length > 0) {
+            String name = (String) JOptionPane.showInputDialog(null, "请选择待删除的标签名：\n", "备份删除", JOptionPane.PLAIN_MESSAGE, null, objects, objects[0]);
+            if(name != null && name.length() > 0 && tableMap.containsKey(name)) {
+                tableMap.remove(name);
+                statusLabel.setText("删除备份成功！");
+            }
+        }
+        try {
+            saveConf();
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     *
+     * @return
+     */
+    private Conf getCurrentConf(){
+        ObjectMapper mapper = new ObjectMapper();
+        List<Field> fields = new ArrayList<>();
+        for(FieldPane fieldPane : fieldPaneList) {
+            fields.add(fieldPane.getField());
+        }
+
+        String tables = new JSONObject(tableMap).toJSONString();
+        String jsonPara = null;
+        try {
+            jsonPara = mapper.writeValueAsString(fields);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        Conf conf = new Conf();
+        conf.setTables(tables);
+        conf.setJsonPara(jsonPara);
+
+        String uniquePara = jTextField_Unique.getText();
+        if(uniquePara != null && uniquePara.length() > 0 && !uniquePara.equals("联合关联约束")) {
+            conf.setUniquePara(jTextField_Unique.getText());
+        }
+        return conf;
     }
 
 
@@ -380,13 +579,7 @@ public class GuiMain {
      * @throws JsonProcessingException
      */
     private void saveConf() throws JsonProcessingException {
-        //获取jsonPara
-        ObjectMapper mapper = new ObjectMapper();
-        List<Field> fields = new ArrayList<>();
-        for(FieldPane fieldPane : fieldPaneList) {
-            fields.add(fieldPane.getField());
-        }
-        Conf conf = new Conf(mapper.writeValueAsString(fields));
+        Conf conf = getCurrentConf();
         ConfManager.getInstance().setConf(conf);
     }
 
@@ -402,8 +595,73 @@ public class GuiMain {
                 addField(field);
             }
         }
+
+        String uniquePara = conf.getUniquePara();
+        if(uniquePara !=null && uniquePara.length() > 0) {
+            jTextField_Unique.setText(uniquePara);
+            jTextField_Unique.setForeground(Color.BLACK);
+        }
+
+        //tables读取
+        String tables = conf.getTables();
+        if(tables != null && tables.length() > 0) {
+            JSONObject jsonObject = JSON.parseObject(tables);
+            jsonObject.forEach(new BiConsumer<String, Object>() {
+                @Override
+                public void accept(String s, Object o) {
+                    String table = o.toString();
+                    try {
+                        Table table1 = mapper.readValue(table, Table.class);
+                        tableMap.put(s, table1);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
     }
 
+    /**
+     * 导入表头
+     *
+     */
+    private void importFields() {
+        JFileChooser fileChooser = new JFileChooser();
+        //过滤Excel文件，只寻找以xls结尾的Excel文件，如果想过滤word文档也可以写上doc
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("Text Files", "xls", "xlsx");
+
+        fileChooser.setFileFilter(filter);
+
+        //fd.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        int returnValue = fileChooser.showOpenDialog(null);
+        //弹出一个文件选择提示框
+        if (returnValue == fileChooser.APPROVE_OPTION) {
+            //当用户选择文件后获取文件路径
+            File chooseFile = fileChooser.getSelectedFile();
+
+            //根据文件路径初始化Excel工作簿
+            Workbook workBook = null;
+            try {
+                workBook = new XSSFWorkbook(chooseFile);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            if(workBook != null && workBook.getNumberOfSheets() > 0 ) {
+                //获取该工作表中的第一个工作表
+                Sheet sheet = workBook.getSheetAt(0);
+                if(sheet.getPhysicalNumberOfRows() > 0) {
+                    Row row = sheet.getRow(0);
+                    Iterator<Cell> iterator = row.cellIterator();
+                    while (iterator.hasNext()) {
+                        Cell cell = iterator.next();
+                        String fieldName = cell.getStringCellValue();
+                        addField(new Field(fieldName, null, null));
+                    }
+                }
+            }
+        }
+    }
 
 
     /**

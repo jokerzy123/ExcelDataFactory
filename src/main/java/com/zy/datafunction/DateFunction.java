@@ -10,7 +10,7 @@ public class DateFunction {
         for (int i=0;i<30;i++){
             Date date = randomDate("2019-01-01","2019-01-31");
             //SimpleDateFormat.format把时间转换成字符串
-            System.out.println(new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(date));
+            System.out.println(new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(date));
         }
     }
 

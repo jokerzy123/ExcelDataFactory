@@ -19,7 +19,8 @@ public class RowObject {
         return propertyMap;
     }
 
-    //重置主键关联字段
+    //重置主键关联字段--这个逻辑可以优化的，可以事先缓存关联的值？不然每次都要遍历全部值
+    @Deprecated
     public void uniqueReset(List<RowObject> rowObjectList,String primaryField,String[] relatedFields){
         for(RowObject rowObject:rowObjectList){
             if(propertyMap.get(primaryField).equals(rowObject.propertyMap.get(primaryField))){//如果主键value相等，则重置相关的关联字段
@@ -29,6 +30,24 @@ public class RowObject {
                 return;
             }
         }
+    }
+
+    /**
+     * 重置主键关联字段
+     * @param uniqueMap
+     * @param primaryField
+     * @param relatedFields
+     */
+    public void uniqueReset(Map<String, RowObject> uniqueMap,String primaryField,String[] relatedFields){
+        if(uniqueMap.containsKey(propertyMap.get(primaryField))){
+            RowObject rowObject = uniqueMap.get(propertyMap.get(primaryField));
+            for(String relatedField:relatedFields){
+                propertyMap.put(relatedField,rowObject.propertyMap.get(relatedField));
+            }
+        } else {
+            uniqueMap.put(propertyMap.get(primaryField), this);
+        }
+
     }
 
     public String toRow(List<String> fieldNameList){

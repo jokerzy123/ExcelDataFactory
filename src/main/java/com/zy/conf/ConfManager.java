@@ -46,8 +46,14 @@ public class ConfManager {
         try(InputStream in = new FileInputStream(proPath)) {
             Properties pro = new Properties();
             pro.load(in);
+            String uniquePara = pro.getProperty("uniquePara");
             String jsonPara = pro.getProperty("jsonPara");
-            return new Conf(jsonPara);
+            String tables = pro.getProperty("tables");
+            Conf conf = new Conf();
+            conf.setUniquePara(uniquePara);
+            conf.setJsonPara(jsonPara);
+            conf.setTables(tables);
+            return conf;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -57,7 +63,9 @@ public class ConfManager {
     public void setConf(Conf conf){
         try(OutputStream out = new FileOutputStream(proPath)) {
             Properties pro = new Properties();
+            pro.put("uniquePara", conf.getUniquePara() == null ? "" : conf.getUniquePara());
             pro.put("jsonPara", conf.getJsonPara() == null ? "" : conf.getJsonPara());
+            pro.put("tables", conf.getTables() == null ? "" : conf.getTables());
             pro.store(out, "set pro");
         } catch (Exception e) {
             e.printStackTrace();
@@ -65,7 +73,7 @@ public class ConfManager {
     }
 
     public static void main(String[] args) {
-        ConfManager.getInstance().setConf(new Conf("{}"));
+        ConfManager.getInstance().setConf(new Conf());
     }
 
 }
